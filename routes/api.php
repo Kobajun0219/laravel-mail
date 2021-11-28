@@ -22,10 +22,16 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 Route::post('login', [ApiController::class, 'authenticate']);
 Route::post('register', [ApiController::class, 'register']);
+Route::get('/register/verify/{token}', [ApiController::class, 'checkRegisterEmail']);
 
 Route::group(['middleware' => ['jwt.verify']], function () {
+
+    // Route::group(['middleware' => ['checkemail']], function () {
+    //     Route::get('get_user', [ApiController::class, 'get_user']);
+    // });
+
     Route::get('logout', [ApiController::class, 'logout']);
-    Route::get('get_user', [ApiController::class, 'get_user']);
+    Route::get('get_user', [ApiController::class, 'get_user'])->middleware('checkemail');
     Route::get('products', [ProductController::class, 'index']);
     Route::get('products/{id}', [ProductController::class, 'show']);
     Route::post('create', [ProductController::class, 'store']);

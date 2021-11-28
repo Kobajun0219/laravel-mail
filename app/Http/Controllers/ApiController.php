@@ -8,10 +8,49 @@ use Illuminate\Http\Request;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\EmailVerification;
 
 
 class ApiController extends Controller
 {
+    public function checkRegisterEmail($email_token)
+    {
+      // 使用可能なトークンか
+      if ( !User::where('email_verify_token',$email_token)->exists() ){
+          redirect('/register/email/invalid');
+      } else {
+          $user = User::where('email_verify_token', $email_token)->first();
+          // 本登録済みユーザーか
+          if ($user->email_verified == 1){
+              // logger("status". $user->email_verified );
+            return response()->json([
+                'message' => 'already register',
+                'data' => $user
+            ], Response::HTTP_OK);
+          }
+          // ユーザーステータス更新
+          $user->email_verified = 1;
+          $user->email_verified_at = Carbon::now();
+          if($user->save()) {
+            return response()->json([
+                'message' => 'success register',
+                'data' => $user
+            ], Response::HTTP_OK);
+          } else{
+                return response()->json([
+                    'success' => false,
+                    'message' => 'failed register',
+                    'data' => $user
+                ], Response::HTTP_OK);
+          }
+      }
+
+    }
+
+
     public function register(Request $request)
     {
         //Validate data
@@ -31,13 +70,16 @@ class ApiController extends Controller
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => bcrypt($request->password)
+            'password' => bcrypt($request->password),
+            'email_verify_token' => base64_encode($request->email)
         ]);
+
+        Mail::to($request->email)->send(new EmailVerification($user));
 
         //User created, return success response
         return response()->json([
             'success' => true,
-            'message' => 'User created successfully',
+            'message' => '仮登録完了',
             'data' => $user
         ], Response::HTTP_OK);
     }
@@ -118,5 +160,26 @@ class ApiController extends Controller
         $user = JWTAuth::authenticate($request->token);
 
         return response()->json(['user' => $user]);
+    }
+
+    /**
+     * Refresh JWT token
+     */
+    public function refresh()
+    {
+        if ($token = JWTAuth::getToken()) {
+        // if ($token = $this->guard()->refresh()) {
+            return response()
+                ->json(['status' => 'successs'], 200)
+                ->header('Authorization', $token);
+        }
+        return response()->json(['error' => 'refresh_token_error'], 401);
+    }
+    /**
+     * Return auth guard
+     */
+    private function guard()
+    {
+        return Auth::guard();
     }
 }
