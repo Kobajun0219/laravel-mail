@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\Auth\LineOAuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -38,3 +39,8 @@ Route::group(['middleware' => ['jwt.verify']], function () {
     Route::put('update/{product}',  [ProductController::class, 'update']);
     Route::delete('delete/{product}',  [ProductController::class, 'destroy']);
 });
+
+// LINEの認証画面に遷移
+Route::get('auth/line', [LineOAuthController::class, 'redirectToProvider'])->name('line.login');
+// 認証後にリダイレクトされるURL(コールバックURL)
+Route::get('auth/line/callback', [LineOAuthController::class, 'handleProviderCallback']);
